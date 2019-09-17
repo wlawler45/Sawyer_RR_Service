@@ -1,0 +1,4 @@
+Make sure to install swig
+set ROBOTRACONTEUR_ROBDEF_PATH
+pull robot raconteur from github into ros workspace
+catkin_make_isolated --cmake-args -DROBOTRACONTEUR_ROS=1
