@@ -12,6 +12,21 @@ import RobotRaconteur as RR
 import thread
 import threading
 import numpy
+
+from geometry_msgs.msg import (
+    PoseStamped,
+    Pose,
+    Point,
+    Quaternion,
+)
+from std_msgs.msg import Header
+from sensor_msgs.msg import JointState
+
+from intera_core_msgs.srv import (
+    SolvePositionIK,
+    SolvePositionIKRequest,
+)
+
 RRN=RR.RobotRaconteurNode.s
 sawyer_servicedef="""
 #Service to provide simple interface to Sawyer
@@ -193,6 +208,7 @@ class Sawyer_impl(object):
     
     
     def setControlMode(self, mode):
+        
         if mode != self.MODE_POSITION and \
                 mode != self.MODE_VELOCITY and \
                 mode != self.MODE_TORQUE:
@@ -249,17 +265,23 @@ class Sawyer_impl(object):
     def easy_jog(self, joint_positions):
         self.setJointCommand('right',joint_positions)
 
+    def easy_jog_cartesian(self, end_effector_position, end_effector_quaternion):
+        joint_angles=ik_service_client(end_effector_position, end_effector_quaternion)
+        self.setJointCommand('right',joint_angles)
+
     def jointspace_worker(self):
         while self._running:
             #statesensordata=RRN.NewStructure("com.robotraconteur.robotics.easy.EasyRobotStateSensorData")
             with self._lock:
                 state=RRN.NewStructure("com.robotraconteur.robotics.easy.EasyRobotState")
                 #mode=RRN.NewStructure("com.robotraconteur.robotics.easy.EasyRobotMode")
+
                 
+                #print(self._right.endpoint_pose()['position'])
                 #state.seqno=self.seqno
                 state.seqno=self.seqno
                 
-                print(self._mode)
+                #print(self._mode)
                 state.mode=self._mode
                 """
                 print(self.readJointPositions())
@@ -311,10 +333,12 @@ class Sawyer_impl(object):
         
     @property
     def easy_mode(self):
+        
         return self._mode
 
     @easy_mode.setter
     def easy_mode(self,value):
+        print("Changing mode to: "+str(value))
         self._mode=value
     # worker function to request and update end effector data for sawyer
     # Try to maintain 100 Hz operation
@@ -361,7 +385,61 @@ class Sawyer_impl(object):
         return params
     
     
-    
+def ik_service_client(position_in,orientation_in):
+    ns = "ExternalTools/right/PositionKinematicsNode/IKService"
+    iksvc = rospy.ServiceProxy(ns, SolvePositionIK)
+    ikreq = SolvePositionIKRequest()
+    hdr = Header(stamp=rospy.Time.now(), frame_id='base')
+    poses = {
+        'right': PoseStamped(
+            header=hdr,
+            pose=Pose(
+                position=Point(
+                    x=position_in[0],
+                    y=position_in[1],
+                    z=position_in[2],
+                ),
+                orientation=Quaternion(
+                    x=orientation_in[0],
+                    y=orientation_in[1],
+                    z=orientation_in[2],
+                    w=orientation_in[3],
+                ),
+            ),
+        ),
+    }
+    # Add desired pose for inverse kinematics
+    ikreq.pose_stamp.append(poses["right"])
+    # Request inverse kinematics from base to "right_hand" link
+    ikreq.tip_names.append('right_hand')
+    try:
+        rospy.wait_for_service(ns, 5.0)
+        resp = iksvc(ikreq)
+    except (rospy.ServiceException, rospy.ROSException), e:
+        rospy.logerr("Service call failed: %s" % (e,))
+        return False
+
+    # Check if result valid, and type of seed ultimately used to get solution
+    if (resp.result_type[0] > 0):
+        seed_str = {
+                    ikreq.SEED_USER: 'User Provided Seed',
+                    ikreq.SEED_CURRENT: 'Current Joint Angles',
+                    ikreq.SEED_NS_MAP: 'Nullspace Setpoints',
+                   }.get(resp.result_type[0], 'None')
+        rospy.loginfo("SUCCESS - Valid Joint Solution Found from Seed Type: %s" %
+              (seed_str,))
+        # Format solution into Limb API-compatible dictionary
+        limb_joints = dict(zip(resp.joints[0].name, resp.joints[0].position))
+        rospy.loginfo("\nIK Joint Solution:\n%s", limb_joints)
+        rospy.loginfo("------------------")
+        rospy.loginfo("Response Message:\n%s", resp)
+        output=[limb_joints['right_j0'],limb_joints['right_j1'],limb_joints['right_j2'],limb_joints['right_j3'],limb_joints['right_j4'],limb_joints['right_j5'],limb_joints['right_j6']]
+    else:
+        rospy.logerr("INVALID POSE - No Valid Joint Solution Found.")
+        rospy.logerr("Result Error %d", resp.result_type[0])
+        return False
+    print output
+    return output
         
         
 def main():
@@ -396,7 +474,7 @@ def main():
         RRN.RegisterServiceTypeFromFile("com.robotraconteur.sensordata")
         RRN.RegisterServiceTypeFromFile("com.robotraconteur.device")
         RRN.RegisterServiceTypeFromFile("com.robotraconteur.robotics.easy")
-        RRN.RegisterService("EasyRobot",
+        RRN.RegisterService("Sawyer",
                           "com.robotraconteur.robotics.easy.EasyRobot",
                                               sawyer_obj)
         time.sleep(2)
