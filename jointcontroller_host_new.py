@@ -83,6 +83,7 @@ class Sawyer_impl(object):
         self.MODE_TRAJECTORY = 2#;#4
         self._downsample=0.01
         self._mode = self.MODE_HALT
+        self._speed_ratio=0
         self._trajectory_running=False
         self._robot_state_sensor_data=None
         self._joint_command=numpy.zeros(7,dtype=float)
@@ -262,18 +263,25 @@ class Sawyer_impl(object):
             self._velocity_command=wire.InValue
         
         
-    def easy_jog(self, joint_positions):
+    def jog_joint(self, joint_positions, max_velocity=[], relative=None, wait=None):
         self.setJointCommand('right',joint_positions)
 
-    def easy_jog_cartesian(self, end_effector_position, end_effector_quaternion):
+    def jog_cartesian(self, target_pose, max_velocity,relative, wait):
+        end_effector_position=[target_pose.translation.x,target_pose.translation.y,target_pose.translation.z]
+        end_effector_quaternion=[target_pose.orientation.w,target_pose.orientation.x,target_pose.orientation.y,target_pose.orientation.z]
         joint_angles=ik_service_client(end_effector_position, end_effector_quaternion)
         self.setJointCommand('right',joint_angles)
+
+    def execute_trajectory(self,trajectory):
+        self.trajectory_running=True
+        self._current_trajectory=trajectory
+        return trajectory_generator(self)
 
     def jointspace_worker(self):
         while self._running:
             #statesensordata=RRN.NewStructure("com.robotraconteur.robotics.easy.EasyRobotStateSensorData")
             with self._lock:
-                state=RRN.NewStructure("com.robotraconteur.robotics.easy.EasyRobotState")
+                state=RRN.NewStructure("com.robotraconteur.robotics.robot.RobotState")
                 #mode=RRN.NewStructure("com.robotraconteur.robotics.easy.EasyRobotMode")
 
                 
@@ -282,7 +290,9 @@ class Sawyer_impl(object):
                 state.seqno=self.seqno
                 
                 #print(self._mode)
-                state.mode=self._mode
+                state.controller_mode=self._mode
+                state.operational_mode=1
+                state.controller_state=self._mode
                 """
                 print(self.readJointPositions())
                 print(self.readJointVelocities())
@@ -297,6 +307,7 @@ class Sawyer_impl(object):
                 state.position_command=self._joint_command
                 state.velocity_command=self._velocity_command
                 #state.trajectory_running=self._trajectory_running
+                
                 """
                 state.joint_position=numpy.zeros((0,))
                 state.joint_velocity=numpy.zeros((0,))
@@ -304,13 +315,13 @@ class Sawyer_impl(object):
                 state.position_command=numpy.zeros((0,))
                 state.velocity_command=numpy.zeros((0,))
                 state.trajectory_running=1"""
-                self.easy_robot_state.OutValue=state
+                self.robot_state.OutValue=state
                 self.seqno+=1
                 #while (time.time() - t1 < 0.01):
                 # idle
             #self._easy_robot_state_sensor_data_broadcaster.AsyncSendPacket(statesensordata,lambda: None)
             time.sleep(self._downsample)
-            
+    """        
     @property
     def easy_robot_state_sensor_data(self):
         return self._robot_state_sensor_data
@@ -321,7 +332,7 @@ class Sawyer_impl(object):
         #Create the PipeBroadcaster and set backlog to 3 so packets
         #will be dropped if the transport is overloaded
         self._easy_robot_state_sensor_data_broadcaster=RR.PipeBroadcaster(value,3)
-            
+    """        
     def _robot_header_create(self):
         #header=RRN.NewStructure("com.robotraconteur.sensordata.SensorDataHeader")
         #statesensordata=RRN.NewStructure("com.robotraconteur.sensordata.SensorDataSourceInfo")
@@ -330,14 +341,24 @@ class Sawyer_impl(object):
     @property
     def EasyRobotInfo(self):
         info=RRN.NewStructure("com.robotraconteur.robotics.easy.EasyRobotInfo")
-        
+    
     @property
-    def easy_mode(self):
+    def speed_ratio(self):
+        
+        return self._speed_ratio
+
+    @speed_ratio.setter
+    def speed_ratio(self,value):
+        print("Changing speed ratio to: "+str(value))
+        self._speed_ratio=value
+
+    @property
+    def command_mode(self):
         
         return self._mode
 
-    @easy_mode.setter
-    def easy_mode(self,value):
+    @command_mode.setter
+    def command_mode(self,value):
         print("Changing mode to: "+str(value))
         self._mode=value
     # worker function to request and update end effector data for sawyer
@@ -384,6 +405,55 @@ class Sawyer_impl(object):
     def easy_param_names(self):
         return params
     
+class trajectory_generator(object):
+    def __init__(self,robot_object):
+        self._j=0
+        self._closed=False
+        self.robot_object=robot_object
+        self._aborted=False
+        self.duration_from_start=0
+
+    def Next(self): #add joints next
+        trajectory_status=RRN.NewStructure("com.robotraconteur.robotics.trajectory.TrajectoryStatus")
+        if self._aborted:
+            self.robot_object.trajectory_running=False
+            self.robot_object._current_trajectory=None
+            trajectory_status.status=-1
+            raise OperationAbortedException()
+        #check if number of items = joint number and error
+        elif self._closed or self._j>=len(self.robot_object._current_trajectory.waypoints):
+            self.robot_object.trajectory_running=False
+            self.robot_object._current_trajectory=None
+            trajectory_status.status=3
+            raise StopIterationException()
+        else:
+            trajectory_status.status=2
+        waypoint=self.robot_object._current_trajectory.waypoints[self._j]
+        robot_object.jog_joint(waypoint.joint_position,waypoint.joint_velocity)
+        #if (self._j>=8):
+        #    raise StopIterationException()
+        
+        #a = copy.copy(v)
+        #for i in xrange(len(a)):
+        #    a[i]+=self._j
+        
+        trajectory_status.seqno=self.robot_object.seqno
+        trajectory_status.current_waypoint=self._j
+        self.duration_from_start=(self.robot_object._speed_ratio)*self._j
+        trajectory_status.trajectory_time=self.duration_from_start
+        
+        self._j+=1
+        
+        return trajectory_status
+        
+    def Abort(self):
+        self._aborted=True
+        
+    def Close(self):
+        self._closed=True
+        
+        
+
     
 def ik_service_client(position_in,orientation_in):
     ns = "ExternalTools/right/PositionKinematicsNode/IKService"
