@@ -12,7 +12,7 @@ import RobotRaconteur as RR
 import thread
 import threading
 import numpy
-
+from copy import copy
 from geometry_msgs.msg import (
     PoseStamped,
     Pose,
@@ -25,6 +25,17 @@ from sensor_msgs.msg import JointState
 from intera_core_msgs.srv import (
     SolvePositionIK,
     SolvePositionIKRequest,
+)
+
+import actionlib
+
+from control_msgs.msg import (
+    FollowJointTrajectoryGoal,
+    FollowJointTrajectoryAction,
+    FollowJointTrajectoryResult,
+)
+from trajectory_msgs.msg import (
+    JointTrajectoryPoint,
 )
 
 RRN=RR.RobotRaconteurNode.s
@@ -67,7 +78,12 @@ class Sawyer_impl(object):
         self._r_jnames = self._right.joint_names()
         self._lock=threading.RLock()
         # data initializations
+        self._ns = 'robot/limb/right'
+        self._fjt_ns = self._ns + '/follow_joint_trajectory'
+        #self.trajectory_client = actionlib.SimpleActionClient(self._fjt_ns, FollowJointTrajectoryAction)
         
+        #self.trajectory_client.wait_for_server()
+        self.current_plan=None
         self._jointpos = numpy.zeros(7,dtype=float)
         self._jointvel = numpy.zeros(7,dtype=float)
         self._jointtor = numpy.zeros(7,dtype=float)
@@ -264,7 +280,12 @@ class Sawyer_impl(object):
         
         
     def jog_joint(self, joint_positions, max_velocity=[], relative=None, wait=None):
+        print("jogging")
+        print(joint_positions)
         self.setJointCommand('right',joint_positions)
+
+    #def execute_trajectory(self, joint_positions, joint_velocities)
+        
 
     def jog_cartesian(self, target_pose, max_velocity,relative, wait):
         end_effector_position=[target_pose.translation.x,target_pose.translation.y,target_pose.translation.z]
@@ -412,24 +433,59 @@ class trajectory_generator(object):
         self.robot_object=robot_object
         self._aborted=False
         self.duration_from_start=0
+        #self._goal = FollowJointTrajectoryGoal()
+        #joint_names=[]
+        #for i in self.robot_object._current_trajectory.joint_names:
+        #    joint_names.append(str(i))
+        #self._goal.trajectory.joint_names=joint_names
+        #self._goal_time_tolerance = rospy.Time(0.1)
+        #self._goal.goal_time_tolerance = self._goal_time_tolerance
+        
 
     def Next(self): #add joints next
         trajectory_status=RRN.NewStructure("com.robotraconteur.robotics.trajectory.TrajectoryStatus")
         if self._aborted:
             self.robot_object.trajectory_running=False
             self.robot_object._current_trajectory=None
-            trajectory_status.status=-1
+            trajectory_status.status= -1
             raise OperationAbortedException()
         #check if number of items = joint number and error
-        elif self._closed or self._j>=len(self.robot_object._current_trajectory.waypoints):
+        elif self._closed:
+            
             self.robot_object.trajectory_running=False
             self.robot_object._current_trajectory=None
             trajectory_status.status=3
             raise StopIterationException()
+        elif self._j>=(len(self.robot_object._current_trajectory.waypoints)):
+            trajectory_status.status=3
+            #self._goal.trajectory.header.stamp = rospy.Time.now()
+            #print(self._goal)
+            #result=self.robot_object.trajectory_client.send_goal(self._goal)
+            
+            #self.robot_object.trajectory_client.wait_for_result(rospy.Duration(30.0))
+            #print(self.robot_object.trajectory_client.get_result())
+            trajectory_status.seqno=self.robot_object.seqno
+            trajectory_status.current_waypoint=self._j
+            self.duration_from_start=(self.robot_object._speed_ratio)*self._j
+            trajectory_status.trajectory_time=self.duration_from_start
+            print("sending and finishing")
+            
+            raise StopIterationException()
         else:
             trajectory_status.status=2
+            print("continuing")
         waypoint=self.robot_object._current_trajectory.waypoints[self._j]
-        robot_object.jog_joint(waypoint.joint_position,waypoint.joint_velocity)
+        print(self._j)
+        print(waypoint.joint_position)
+
+        #print(len(self.robot_object._current_trajectory.waypoints)-1)
+        #point = JointTrajectoryPoint()
+        #point.positions = list(waypoint.joint_position)
+        #point.time_from_start = rospy.Duration(waypoint.time_from_start)
+        
+        #self._goal.trajectory.points.append(point)
+        self.robot_object.jog_joint(waypoint.joint_position,waypoint.joint_velocity)
+        time.sleep(1)
         #if (self._j>=8):
         #    raise StopIterationException()
         
@@ -543,9 +599,17 @@ def main():
         RRN.RegisterServiceTypeFromFile("com.robotraconteur.datetime")
         RRN.RegisterServiceTypeFromFile("com.robotraconteur.sensordata")
         RRN.RegisterServiceTypeFromFile("com.robotraconteur.device")
-        RRN.RegisterServiceTypeFromFile("com.robotraconteur.robotics.easy")
+        RRN.RegisterServiceTypeFromFile("com.robotraconteur.units")
+        RRN.RegisterServiceTypeFromFile("com.robotraconteur.robotics.joints")
+        RRN.RegisterServiceTypeFromFile("com.robotraconteur.robotics.trajectory")
+        RRN.RegisterServiceTypeFromFile("com.robotraconteur.datatype")
+        RRN.RegisterServiceTypeFromFile("com.robotraconteur.signal")
+        RRN.RegisterServiceTypeFromFile("com.robotraconteur.param")
+        RRN.RegisterServiceTypeFromFile("com.robotraconteur.robotics.tool")
+        RRN.RegisterServiceTypeFromFile("com.robotraconteur.robotics.payload")
+        RRN.RegisterServiceTypeFromFile("com.robotraconteur.robotics.robot")
         RRN.RegisterService("Sawyer",
-                          "com.robotraconteur.robotics.easy.EasyRobot",
+                          "com.robotraconteur.robotics.robot.Robot",
                                               sawyer_obj)
         time.sleep(2)
         sawyer_obj.start()

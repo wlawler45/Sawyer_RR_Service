@@ -4,3 +4,5 @@ pull robot raconteur from github into ros workspace
 catkin_make_isolated --cmake-args -DROBOTRACONTEUR_ROS=1
 export ROBOTRACONTEUR_ROBDEF_PATH="/home/cats/robotraconteur_standard_robdef/group1"
 export ROBOTRACONTEUR_ROBDEF_PATH="/home/cats/new_robotraconteur_standard_robdef/robotraconteur_standard_robdef/group1"
+
+./intera.sh sim
