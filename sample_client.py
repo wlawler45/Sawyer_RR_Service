@@ -6,7 +6,7 @@ import sys
 
 def main():
 
-    url='rr+tcp://localhost:8884?service=EasyRobot'
+    url='rr+tcp://localhost:8884?service=Sawyer'
     
     
     #Connect to the service
@@ -14,9 +14,9 @@ def main():
 
     #Start streaming data packets
     c.easy_mode=3
-    c.easy_jog(numpy.zeros(7,dtype=float))
-    wire=c.easy_robot_state.Connect()
-    wire.WireValueChanged+=incoming_state
+    c.jog_joint(numpy.array([0.5,0.5,0.5,1.5,0.5,0.5,0.5]),numpy.zeros(7,dtype=float),False,False)
+    #wire=c.easy_robot_state.Connect()
+    #wire.WireValueChanged+=incoming_state
  #   position_wire=c.easy_position_command.Connect()
  #   for x in range(0,5,0.1):
   #      position_wire.O

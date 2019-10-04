@@ -327,6 +327,7 @@ class Sawyer_impl(object):
                 state.joint_effort=self.readJointTorques()
                 state.position_command=self._joint_command
                 state.velocity_command=self._velocity_command
+		state.trajectory_running=False
                 #state.trajectory_running=self._trajectory_running
                 
                 """
@@ -469,7 +470,7 @@ class trajectory_generator(object):
             self.duration_from_start=(self.robot_object._speed_ratio)*self._j
             trajectory_status.trajectory_time=self.duration_from_start
             print("sending and finishing")
-            
+            self._j=0
             raise StopIterationException()
         else:
             trajectory_status.status=2
@@ -597,7 +598,9 @@ def main():
         RRN.RegisterServiceTypeFromFile("com.robotraconteur.geometry")
         RRN.RegisterServiceTypeFromFile("com.robotraconteur.uuid")
         RRN.RegisterServiceTypeFromFile("com.robotraconteur.datetime")
+	RRN.RegisterServiceTypeFromFile("com.robotraconteur.identifier")
         RRN.RegisterServiceTypeFromFile("com.robotraconteur.sensordata")
+	RRN.RegisterServiceTypeFromFile("com.robotraconteur.resource")
         RRN.RegisterServiceTypeFromFile("com.robotraconteur.device")
         RRN.RegisterServiceTypeFromFile("com.robotraconteur.units")
         RRN.RegisterServiceTypeFromFile("com.robotraconteur.robotics.joints")
