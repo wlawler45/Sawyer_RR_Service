@@ -327,7 +327,7 @@ class Sawyer_impl(object):
                 state.joint_effort=self.readJointTorques()
                 state.position_command=self._joint_command
                 state.velocity_command=self._velocity_command
-		state.trajectory_running=False
+                state.trajectory_running=False
                 #state.trajectory_running=self._trajectory_running
                 
                 """

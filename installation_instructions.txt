@@ -6,3 +6,17 @@ export ROBOTRACONTEUR_ROBDEF_PATH="/home/cats/robotraconteur_standard_robdef/gro
 export ROBOTRACONTEUR_ROBDEF_PATH="/home/cats/new_robotraconteur_standard_robdef/robotraconteur_standard_robdef/group1"
 
 ./intera.sh sim
+
+
+it is probably easier that way since the planner is pretty simple
+   https://github.com/johnwason/tesseract_robotraconteur   
+install tesseract
+   https://github.com/ros-industrial-consortium/tesseract   
+make sure you clone with recursive
+use wstool with dependencies.rosinstall
+run rosdep
+catkin_make_isolated
+then, run test/load_sawyer_parameters.launch if the urdf and srdf are not already loaded
+rosrun tesseract_robotraconteur tesseract_robotraconteur_service
+then python test/sanity_test_planner.py
+will generate a plan
