@@ -20,3 +20,7 @@ then, run test/load_sawyer_parameters.launch if the urdf and srdf are not alread
 rosrun tesseract_robotraconteur tesseract_robotraconteur_service
 then python test/sanity_test_planner.py
 will generate a plan
+
+
+ssh pi_sawyer@128.113.224.88
+

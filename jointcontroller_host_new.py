@@ -328,6 +328,16 @@ class Sawyer_impl(object):
                 state.position_command=self._joint_command
                 state.velocity_command=self._velocity_command
                 state.trajectory_running=False
+                self.readEndEffectorPoses()
+                position=RRN.GetNamedArrayDType("com.robotraconteur.geometry.Pose")
+                position.orientation.w=self._ee_or[0]
+                position.orientation.x=self._ee_or[1]
+                position.orientation.y=self._ee_or[2]
+                position.orientation.z=self._ee_or[3]
+                position.position.x=self._ee_pos[0]
+                position.position.y=self._ee_pos[1]
+                position.position.z=self._ee_pos[2]
+                state.kin_chain_tcp=numpy.asarray(position)
                 #state.trajectory_running=self._trajectory_running
                 
                 """
