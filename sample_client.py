@@ -6,7 +6,7 @@ import sys
 
 def main():
 
-    url='rr+tcp://[fe80::c3ea:12ca:52b2:20d1]:8884/?nodeid=71b9629e-2352-4a25-92b1-f1a3384e08de&service=Sawyer'
+    url='rr+tcp://[fe80::23b1:8dea:d94b:ab27]:8884/?nodeid=e37e7c86-c69c-4075-9ffb-91817e53ec0f&service=Sawyer'
 
     
     
@@ -31,6 +31,7 @@ def incoming_state(w,state,time):
     print("Joint Position: "+str(state.joint_position))
     print("Joint Velocity: "+str(state.joint_velocity))
     print("Joint Effort: "+str(state.joint_effort)+"\n")
+    print("Joint position:"+str(state.kin_chain_tcp))
     print("Position Command: "+str(state.position_command))
     print("Velocity Command: "+str(state.velocity_command)+"\n")
     print("----------------------------------------\n")

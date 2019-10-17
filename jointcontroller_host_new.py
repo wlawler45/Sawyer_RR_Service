@@ -288,8 +288,11 @@ class Sawyer_impl(object):
         
 
     def jog_cartesian(self, target_pose, max_velocity,relative, wait):
-        end_effector_position=[target_pose.translation.x,target_pose.translation.y,target_pose.translation.z]
-        end_effector_quaternion=[target_pose.orientation.w,target_pose.orientation.x,target_pose.orientation.y,target_pose.orientation.z]
+        #target_pose[0]['position']['x']
+        end_effector_position=[target_pose[0]['position']['x'],target_pose[0]['position']['y'],target_pose[0]['position']['z']]
+        end_effector_quaternion=[target_pose[0]['orientation']['w'],target_pose[0]['orientation']['x'],target_pose[0]['orientation']['y'],target_pose[0]['orientation']['z']]
+        #end_effector_position=[target_pose.translation.x,target_pose.translation.y,target_pose.translation.z]
+        #end_effector_quaternion=[target_pose.orientation.w,target_pose.orientation.x,target_pose.orientation.y,target_pose.orientation.z]
         joint_angles=ik_service_client(end_effector_position, end_effector_quaternion)
         self.setJointCommand('right',joint_angles)
 
@@ -329,15 +332,25 @@ class Sawyer_impl(object):
                 state.velocity_command=self._velocity_command
                 state.trajectory_running=False
                 self.readEndEffectorPoses()
-                position=RRN.GetNamedArrayDType("com.robotraconteur.geometry.Pose")
-                position.orientation.w=self._ee_or[0]
-                position.orientation.x=self._ee_or[1]
-                position.orientation.y=self._ee_or[2]
-                position.orientation.z=self._ee_or[3]
-                position.position.x=self._ee_pos[0]
-                position.position.y=self._ee_pos[1]
-                position.position.z=self._ee_pos[2]
-                state.kin_chain_tcp=numpy.asarray(position)
+                pose=RRN.GetNamedArrayDType("com.robotraconteur.geometry.Pose")
+                position=numpy.zeros((1,),dtype=pose)
+                position[0]['orientation']['w']=self._ee_or[0]
+                position[0]['orientation']['x']=self._ee_or[1]
+                position[0]['orientation']['y']=self._ee_or[2]
+                position[0]['orientation']['z']=self._ee_or[3]
+                position[0]['position']['x']=self._ee_pos[0]
+                position[0]['position']['y']=self._ee_pos[1]
+                position[0]['position']['z']=self._ee_pos[2]
+                #pose_temp=self._ee_or+self._ee_pos
+                #position=numpy.ArrayToNamedArray(pose_temp)
+                #position.orientation.w=self._ee_or[0]
+                #position.orientation.x=self._ee_or[1]
+                #position.orientation.y=self._ee_or[2]
+                #position.orientation.z=self._ee_or[3]
+                #position.position.x=self._ee_pos[0]
+                #position.position.y=self._ee_pos[1]
+                #position.position.z=self._ee_pos[2]
+                state.kin_chain_tcp=position
                 #state.trajectory_running=self._trajectory_running
                 
                 """
