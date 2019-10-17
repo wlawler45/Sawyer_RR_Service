@@ -2,14 +2,14 @@ import RobotRaconteur as RR
 from RobotRaconteur.Client import *
 import numpy as np
 ####################Start Service
-RRN=RR.RobotRaconteurNode.s
-RRN.RegisterServiceTypeFromFile("com.robotraconteur.geometry")
+#RRN=RR.RobotRaconteurNode.s
+#RRN.RegisterServiceTypeFromFile("com.robotraconteur.geometry")
 inst=RRN.ConnectService('rr+tcp://localhost:52222/?service=SmartCam')
 Sawyer=RRN.ConnectService('tcp://localhost:8884/SawyerJointServer/Sawyer')
 
 
 
-destination=RRN.GetNamedArrayDType("com.robotraconteur.geometry.Pose")
+destination=RRN.GetNamedArrayDType("com.robotraconteur.geometry.Pose",Sawyer)
 #orientation=RRN.GetNamedArrayDType("com.robotraconteur.geometry.Quaternion")
 #position=RRN.GetNamedArrayDType("com.robotraconteur.geometry.Point")
 position=np.zeros((1,),dtype=destination)
@@ -18,7 +18,7 @@ position[0]['orientation']['x']=0.5313043122867314
 position[0]['orientation']['y']=0.014777107322197721
 position[0]['orientation']['z']=0.006676614591848186
 
-position[0]['position']['z']=0
+position[0]['position']['z']=0.16982119162366985
 
 
 
@@ -72,14 +72,15 @@ print(H)
 inst.update()
 #position.x=inst.objects[0].x
 #position.y=inst.objects[0].y
-
-position[0]['position']['x']=1.0#inst.objects[0].x
-position[0]['position']['y']=1.0#inst.objects[0].y
+#(0.47154102165648876, 0.0951026163144613, 0.16982119162366985)
+position[0]['position']['x']=0.55154102165648876#inst.objects[0].x
+position[0]['position']['y']=0.0951026163144613#inst.objects[0].y
 #destination.position=position
-velocity=RRN.GetNamedArrayDType("com.robotraconteur.geometry.SpatialVelocity")
+velocity=RRN.GetNamedArrayDType("com.robotraconteur.geometry.SpatialVelocity",Sawyer)
 #spatial_velocity=np.zeros((1,),dtype=velocity)
 spatial_velocity=RRN.ArrayToNamedArray(np.zeros(6,dtype=float),velocity)
-
+Sawyer.speed_ratio=1
+Sawyer.command_mode=3
 Sawyer.jog_cartesian({0:position},{0:spatial_velocity},False,False)
 
 

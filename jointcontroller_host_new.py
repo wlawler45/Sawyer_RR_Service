@@ -21,7 +21,7 @@ from geometry_msgs.msg import (
 )
 from std_msgs.msg import Header
 from sensor_msgs.msg import JointState
-
+import traceback, code
 from intera_core_msgs.srv import (
     SolvePositionIK,
     SolvePositionIKRequest,
@@ -288,13 +288,19 @@ class Sawyer_impl(object):
         
 
     def jog_cartesian(self, target_pose, max_velocity,relative, wait):
-        #target_pose[0]['position']['x']
-        end_effector_position=[target_pose[0]['position']['x'],target_pose[0]['position']['y'],target_pose[0]['position']['z']]
-        end_effector_quaternion=[target_pose[0]['orientation']['w'],target_pose[0]['orientation']['x'],target_pose[0]['orientation']['y'],target_pose[0]['orientation']['z']]
-        #end_effector_position=[target_pose.translation.x,target_pose.translation.y,target_pose.translation.z]
-        #end_effector_quaternion=[target_pose.orientation.w,target_pose.orientation.x,target_pose.orientation.y,target_pose.orientation.z]
-        joint_angles=ik_service_client(end_effector_position, end_effector_quaternion)
-        self.setJointCommand('right',joint_angles)
+        try:
+            #target_pose[0]['position']['x']
+            end_effector_position=[target_pose[0]['position']['x'][0],target_pose[0]['position']['y'][0],target_pose[0]['position']['z'][0]]
+            print(str(end_effector_position))
+            end_effector_quaternion=[target_pose[0]['orientation']['w'][0],target_pose[0]['orientation']['x'][0],target_pose[0]['orientation']['y'][0],target_pose[0]['orientation']['z'][0]]
+            #print(str(end_effector_quaternion))
+            #end_effector_position=[target_pose.translation.x,target_pose.translation.y,target_pose.translation.z]
+            #end_effector_quaternion=[target_pose.orientation.w,target_pose.orientation.x,target_pose.orientation.y,target_pose.orientation.z]
+            joint_angles=ik_service_client(end_effector_position, end_effector_quaternion)
+            #print(str(joint_angles))
+            self.setJointCommand('right',joint_angles)
+        except:
+            traceback.print_exc()
 
     def execute_trajectory(self,trajectory):
         self.trajectory_running=True
@@ -305,63 +311,67 @@ class Sawyer_impl(object):
         while self._running:
             #statesensordata=RRN.NewStructure("com.robotraconteur.robotics.easy.EasyRobotStateSensorData")
             with self._lock:
-                state=RRN.NewStructure("com.robotraconteur.robotics.robot.RobotState")
-                #mode=RRN.NewStructure("com.robotraconteur.robotics.easy.EasyRobotMode")
+                try:
+                    state=RRN.NewStructure("com.robotraconteur.robotics.robot.RobotState")
+                    #mode=RRN.NewStructure("com.robotraconteur.robotics.easy.EasyRobotMode")
 
-                
-                #print(self._right.endpoint_pose()['position'])
-                #state.seqno=self.seqno
-                state.seqno=self.seqno
-                
-                #print(self._mode)
-                state.controller_mode=self._mode
-                state.operational_mode=1
-                state.controller_state=self._mode
-                """
-                print(self.readJointPositions())
-                print(self.readJointVelocities())
-                print(self.readJointTorques())
-                print(self._joint_command)
-                print(self._velocity_command)
-                """
-                #field bool trajectory_running
-                state.joint_position=self.readJointPositions()
-                state.joint_velocity=self.readJointVelocities()
-                state.joint_effort=self.readJointTorques()
-                state.position_command=self._joint_command
-                state.velocity_command=self._velocity_command
-                state.trajectory_running=False
-                self.readEndEffectorPoses()
-                pose=RRN.GetNamedArrayDType("com.robotraconteur.geometry.Pose")
-                position=numpy.zeros((1,),dtype=pose)
-                position[0]['orientation']['w']=self._ee_or[0]
-                position[0]['orientation']['x']=self._ee_or[1]
-                position[0]['orientation']['y']=self._ee_or[2]
-                position[0]['orientation']['z']=self._ee_or[3]
-                position[0]['position']['x']=self._ee_pos[0]
-                position[0]['position']['y']=self._ee_pos[1]
-                position[0]['position']['z']=self._ee_pos[2]
-                #pose_temp=self._ee_or+self._ee_pos
-                #position=numpy.ArrayToNamedArray(pose_temp)
-                #position.orientation.w=self._ee_or[0]
-                #position.orientation.x=self._ee_or[1]
-                #position.orientation.y=self._ee_or[2]
-                #position.orientation.z=self._ee_or[3]
-                #position.position.x=self._ee_pos[0]
-                #position.position.y=self._ee_pos[1]
-                #position.position.z=self._ee_pos[2]
-                state.kin_chain_tcp=position
-                #state.trajectory_running=self._trajectory_running
-                
-                """
-                state.joint_position=numpy.zeros((0,))
-                state.joint_velocity=numpy.zeros((0,))
-                state.joint_effort=numpy.zeros((0,))
-                state.position_command=numpy.zeros((0,))
-                state.velocity_command=numpy.zeros((0,))
-                state.trajectory_running=1"""
-                self.robot_state.OutValue=state
-                self.seqno+=1
+                    
+                    #print(self._right.endpoint_pose()['position'])
+                    #state.seqno=self.seqno
+                    state.seqno=self.seqno
+                    
+                    #print(self._mode)
+                    state.controller_mode=self._mode
+                    state.operational_mode=1
+                    state.controller_state=self._mode
+                    """
+                    print(self.readJointPositions())
+                    print(self.readJointVelocities())
+                    print(self.readJointTorques())
+                    print(self._joint_command)
+                    print(self._velocity_command)
+                    """
+                    #field bool trajectory_running
+                    state.joint_position=self.readJointPositions()
+                    state.joint_velocity=self.readJointVelocities()
+                    state.joint_effort=self.readJointTorques()
+                    state.position_command=numpy.zeros(7,dtype=float)
+                    state.velocity_command=self._velocity_command
+                    state.trajectory_running=False
+                    self.readEndEffectorPoses()
+                    pose=RRN.GetNamedArrayDType("com.robotraconteur.geometry.Pose")
+                    position=numpy.zeros((1,),dtype=pose)
+                    position[0]['orientation']['w']=self._ee_or[0]
+                    position[0]['orientation']['x']=self._ee_or[1]
+                    position[0]['orientation']['y']=self._ee_or[2]
+                    position[0]['orientation']['z']=self._ee_or[3]
+                    position[0]['position']['x']=self._ee_pos[0]
+                    position[0]['position']['y']=self._ee_pos[1]
+                    position[0]['position']['z']=self._ee_pos[2]
+                    #pose_temp=self._ee_or+self._ee_pos
+                    #position=numpy.ArrayToNamedArray(pose_temp)
+                    #position.orientation.w=self._ee_or[0]
+                    #position.orientation.x=self._ee_or[1]
+                    #position.orientation.y=self._ee_or[2]
+                    #position.orientation.z=self._ee_or[3]
+                    #position.position.x=self._ee_pos[0]
+                    #position.position.y=self._ee_pos[1]
+                    #position.position.z=self._ee_pos[2]
+                    state.kin_chain_tcp=position
+                    #state.trajectory_running=self._trajectory_running
+                    
+                    """
+                    state.joint_position=numpy.zeros((0,))
+                    state.joint_velocity=numpy.zeros((0,))
+                    state.joint_effort=numpy.zeros((0,))
+                    state.position_command=numpy.zeros((0,))
+                    state.velocity_command=numpy.zeros((0,))
+                    state.trajectory_running=1"""
+                    self.robot_state.OutValue=state
+                    self.seqno+=1
+                except:
+                    traceback.print_exc()
+                    
                 #while (time.time() - t1 < 0.01):
                 # idle
             #self._easy_robot_state_sensor_data_broadcaster.AsyncSendPacket(statesensordata,lambda: None)
