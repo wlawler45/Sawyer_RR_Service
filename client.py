@@ -10,32 +10,31 @@ Sawyer=RRN.ConnectService('tcp://localhost:8884/SawyerJointServer/Sawyer')
 
 
 destination=RRN.GetNamedArrayDType("com.robotraconteur.geometry.Pose",Sawyer)
-#orientation=RRN.GetNamedArrayDType("com.robotraconteur.geometry.Quaternion")
-#position=RRN.GetNamedArrayDType("com.robotraconteur.geometry.Point")
+
 position=np.zeros((1,),dtype=destination)
 position[0]['orientation']['w']=0.8470258482846341
 position[0]['orientation']['x']=0.5313043122867314
 position[0]['orientation']['y']=0.014777107322197721
 position[0]['orientation']['z']=0.006676614591848186
-
 position[0]['position']['z']=0.16982119162366985
 
 
 
-################calibration
+#########################################calibration
+# pose=0
 # def incoming_state(w,state,time):
 # 	global pose
-# 	pose=state.end_effector_pose
+# 	pose=state.kin_chain_tcp
 
 # wire=Sawyer.robot_state.Connect()
 # wire.WireValueChanged+=incoming_state
 
 
-# input("please remove robot and place 3 objects")
+# raw_input("please remove robot and place 3 objects")
 # inst.update()
 # while (len(inst.objects)!=3):
 # 	print("number of objects detected: ",len(inst.objects))
-# 	input("please remove robot and place 3 objects")
+# 	raw_input("please remove robot and place 3 objects")
 # 	inst.update()
 
 # x=[]
@@ -45,11 +44,11 @@ position[0]['position']['z']=0.16982119162366985
 
 
 # for i in range(3):
-# 	input("please put robot endeffector on top of object: "+inst.objects[i].name)
+# 	raw_input("please put robot endeffector on top of object: "+inst.objects[i].name)
 # 	x.append(inst.objects[i].x/1000.)
 # 	y.append(inst.objects[i].y/1000.)
-# 	x_r.append(pose[0])
-# 	y_r.append(pose[1])
+# 	x_r.append(pose[0]['position']['x'])
+# 	y_r.append(pose[0]['position']['y'])
 # 	print(x[-1],y[-1],x_r[-1],y_r[-1])
 
 
@@ -59,25 +58,25 @@ position[0]['position']['z']=0.16982119162366985
 # x = np.linalg.solve(A, b)
 # H=np.concatenate((np.transpose(x),np.array([[0,0,1]])),axis=0)
 
-H=np.array([[0.988,0.064,0.03],[-0.016,0.992,0.0449],[0,0,1]])
-#############################Imposing constraints
-R=H[:2,:2]
-T=np.transpose(np.array([H[:2,2]]))
-u,s,vh=np.linalg.svd(R)
-R=np.dot(u,vh)
-H=np.concatenate((np.concatenate((R,T),axis=1),np.array([[0,0,1]])),axis=0)
-print(H)
+# #############################Imposing constraints
+# R=H[:2,:2]
+# T=np.transpose(np.array([H[:2,2]]))
+# u,s,vh=np.linalg.svd(R)
+# R=np.dot(u,vh)
+# H=np.concatenate((np.concatenate((R,T),axis=1),np.array([[0,0,1]])),axis=0)
+# print(H)
 
 
+
+H=np.array([[0.99942127,0.03401641,0.01130381],[-0.03401641,0.99942127,0.05279206],[0,0,1]])
+
+
+############################Move to Object
 inst.update()
-#position.x=inst.objects[0].x
-#position.y=inst.objects[0].y
-#(0.47154102165648876, 0.0951026163144613, 0.16982119162366985)
-position[0]['position']['x']=0.55154102165648876#inst.objects[0].x
-position[0]['position']['y']=0.0951026163144613#inst.objects[0].y
-#destination.position=position
+p=np.dot(H,np.array([[inst.objects[0].x/1000.],[inst.objects[0].y/1000.],[1]]))
+position[0]['position']['x']=p[0]
+position[0]['position']['y']=p[1]
 velocity=RRN.GetNamedArrayDType("com.robotraconteur.geometry.SpatialVelocity",Sawyer)
-#spatial_velocity=np.zeros((1,),dtype=velocity)
 spatial_velocity=RRN.ArrayToNamedArray(np.zeros(6,dtype=float),velocity)
 Sawyer.speed_ratio=1
 Sawyer.command_mode=3

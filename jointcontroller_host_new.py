@@ -5,6 +5,7 @@ import rospy
 import intera_interface
 from std_msgs.msg import Empty
 
+from intera_interface.digital_io import DigitalIO
 import sys, argparse
 import struct
 import time
@@ -81,7 +82,7 @@ class Sawyer_impl(object):
         self._ns = 'robot/limb/right'
         self._fjt_ns = self._ns + '/follow_joint_trajectory'
         #self.trajectory_client = actionlib.SimpleActionClient(self._fjt_ns, FollowJointTrajectoryAction)
-        
+        self.vacuum=False
         #self.trajectory_client.wait_for_server()
         self.current_plan=None
         self._jointpos = numpy.zeros(7,dtype=float)
@@ -417,7 +418,22 @@ class Sawyer_impl(object):
         print("Changing mode to: "+str(value))
         self._mode=value
     # worker function to request and update end effector data for sawyer
-    # Try to maintain 100 Hz operation
+    # Try to maintain 100 Hz operation'
+    def setf_signal(self,signal_name,value):
+
+        if("vacuum" in signal_name):
+            if(self.vacuum):
+                self.vacuum=False
+            else:
+                self.vacuum=True
+            #self.vacuum!=self.vacuum
+            print(self.vacuum)
+            head=DigitalIO("right_valve_1a")
+            head.state=self.vacuum
+            tail=DigitalIO("right_valve_1b")
+            tail.state=not(self.vacuum)
+
+
     def endeffector_worker(self):
         while self._running:
             t1 = time.time()
