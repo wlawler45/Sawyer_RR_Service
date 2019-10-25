@@ -6,7 +6,7 @@ import sys
 
 def main():
 
-    url='rr+tcp://[fe80::6fd7:46d9:60d1:7d1b]:2355/?nodeid=0912818c-8e8f-4022-b31a-63efdc64ad49&service=Universal_Robot'
+    url='rr+tcp://[fe80::23b1:8dea:d94b:ab27]:8884/?nodeid=e37e7c86-c69c-4075-9ffb-91817e53ec0f&service=Sawyer'
 
     
     
@@ -16,7 +16,7 @@ def main():
     c.command_mode=3
     #Start streaming data packets
     #c.easy_mode=3
-    c.jog_joint(numpy.array([1.0,1.0,1.0,1.0,1.0,1.0]),numpy.zeros(6,dtype=float),False,False)
+    #c.jog_joint(numpy.array([1.0,1.0,1.0,1.0,1.0,1.0]),numpy.zeros(6,dtype=float),False,False)
     wire=c.robot_state.Connect()
     wire.WireValueChanged+=incoming_state
  #   position_wire=c.easy_position_command.Connect()

@@ -1,6 +1,7 @@
 import RobotRaconteur as RR
 from RobotRaconteur.Client import *
 import numpy as np
+import time
 ####################Start Service
 #RRN=RR.RobotRaconteurNode.s
 #RRN.RegisterServiceTypeFromFile("com.robotraconteur.geometry")
@@ -21,13 +22,13 @@ position[0]['position']['z']=0.16982119162366985
 
 
 #########################################calibration
-# pose=0
-# def incoming_state(w,state,time):
-# 	global pose
-# 	pose=state.kin_chain_tcp
+pose=0
+def incoming_state(w,state,time):
+	global pose
+	pose=state.kin_chain_tcp
 
-# wire=Sawyer.robot_state.Connect()
-# wire.WireValueChanged+=incoming_state
+wire=Sawyer.robot_state.Connect()
+wire.WireValueChanged+=incoming_state
 
 
 # raw_input("please remove robot and place 3 objects")
@@ -81,6 +82,7 @@ spatial_velocity=RRN.ArrayToNamedArray(np.zeros(6,dtype=float),velocity)
 Sawyer.speed_ratio=1
 Sawyer.command_mode=3
 Sawyer.jog_cartesian({0:position},{0:spatial_velocity},False,False)
+
 
 
 
