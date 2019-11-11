@@ -279,11 +279,23 @@ class Sawyer_impl(object):
         if(wire==self.easy_velocity_command and self._mode==self.MODE_VELOCITY):
             self._velocity_command=wire.InValue
         
-        
-    def jog_joint(self, joint_positions, max_velocity=[], relative=None, wait=None):
+    
+    def genf(self,angle):
+        joint_diff=0
+        joint_cur=self.readJointPositions()
+        for i in range(len(joint_cur)):
+            joint_diff+=abs(angle[i] - joint_cur[i])
+        return joint_diff
+
+
+    def jog_joint(self, joint_positions, max_velocity, relative, wait):
         print("jogging")
         print(joint_positions)
         self.setJointCommand('right',joint_positions)
+        if wait:
+            while self.genf(joint_positions)>0.1:
+                time.sleep(1)
+
 
     #def execute_trajectory(self, joint_positions, joint_velocities)
         
@@ -297,9 +309,10 @@ class Sawyer_impl(object):
             #print(str(end_effector_quaternion))
             #end_effector_position=[target_pose.translation.x,target_pose.translation.y,target_pose.translation.z]
             #end_effector_quaternion=[target_pose.orientation.w,target_pose.orientation.x,target_pose.orientation.y,target_pose.orientation.z]
-            joint_angles=ik_service_client(end_effector_position, end_effector_quaternion)
+            joint_positions=ik_service_client(end_effector_position, end_effector_quaternion)
             #print(str(joint_angles))
-            self.setJointCommand('right',joint_angles)
+            self.jog_joint(joint_positions, max_velocity, relative, wait)
+            # self.setJointCommand('right',joint_positions)
         except:
             traceback.print_exc()
 
@@ -643,7 +656,7 @@ def main():
     
     #RR.RobotRaconteurNode.s.RegisterServiceTypeFromFile("com.robotraconteur.robotics.easy")
     
-    with RR.ServerNodeSetup(nodename,port):
+    with RR.ServerNodeSetup(nodename,port) as node_setup:
         RRN.RegisterServiceTypeFromFile("com.robotraconteur.geometry")
         RRN.RegisterServiceTypeFromFile("com.robotraconteur.uuid")
         RRN.RegisterServiceTypeFromFile("com.robotraconteur.datetime")
@@ -660,9 +673,21 @@ def main():
         RRN.RegisterServiceTypeFromFile("com.robotraconteur.robotics.tool")
         RRN.RegisterServiceTypeFromFile("com.robotraconteur.robotics.payload")
         RRN.RegisterServiceTypeFromFile("com.robotraconteur.robotics.robot")
+
+        #password: cats111!
+        authdata="cats be7af03a538bf30343a501cb1c8237a0 objectlock"
+        p=RR.PasswordFileUserAuthenticator(authdata)
+        policies={"requirevaliduser" : "true"}
+        s=RR.ServiceSecurityPolicy(p,policies)
+
         RRN.RegisterService("Sawyer",
                           "com.robotraconteur.robotics.robot.Robot",
-                                              sawyer_obj)
+                                              sawyer_obj, s)
+        #Add allowed origin for Web
+        node_setup.tcp_transport.AddWebSocketAllowedOrigin("http://localhost")
+        node_setup.tcp_transport.AddWebSocketAllowedOrigin("http://localhost:8000")
+        node_setup.tcp_transport.AddWebSocketAllowedOrigin("https://johnwason.github.io")
+
         time.sleep(2)
         sawyer_obj.start()
 
