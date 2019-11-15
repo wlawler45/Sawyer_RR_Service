@@ -98,8 +98,9 @@ class Sawyer_impl(object):
         self.MODE_VELOCITY = 4#;#2
         self.MODE_TORQUE = 1#;#3
         self.MODE_TRAJECTORY = 2#;#4
-        self._downsample=0.01
-        self._mode = self.MODE_HALT
+        self.downsample=0
+        self.update_rate=0
+        self.command_mode = self.MODE_HALT
         self._speed_ratio=0
         self._trajectory_running=False
         self._robot_state_sensor_data=None
@@ -108,19 +109,44 @@ class Sawyer_impl(object):
         # initial joint command is current pose
         self.readJointPositions()
         self.setJointCommand('right',self._jointpos[0:7])
-                
+        
         # Start background threads
         self._jp_pub = False
         self._running = False
         
-
+        
+        
+        self.robot_info=None
+        self.operational_mode=None
+        self.controller_state=None
+        self.tool_attached=None
+        self.payload_attached=None
+        
+        
+        
+    #TODO: How do we want to load robot model again? Do we want to depend on general robotics toolbox?
+    def load_robot_model(self,filename,location):
+        return 0
+        
+    def device_info_create(self):
+        device_info=RRN.NewStructure("com.robotraconteur.device.DeviceInfo")
+        identifier=RRN.NewStructure("com.robotraconteur.identifier.Identifier)
+        
+        
+    def robot_info_create(self):
+        robot_info=RRN.NewStructure("com.robotraconteur.robotics.robot.RobotInfo")
+        robot_info.robot_type=1
+        #TODO what does robot_type_uuid mean?
+        robot_info.capabilities=0x7
+        #TODO what should I do about SignalInfo? Parameter Info and parent_device
+    
     def close(self):
         self._running = False
         self._t_joints.join()
         self._t_effector.join()
         self._t_command.join()
         
-        if (self._mode != self.MODE_POSITION):
+        if (self.command_mode != self.MODE_POSITION):
             self._right.exit_control_mode()
 
     def start(self):
@@ -242,7 +268,7 @@ class Sawyer_impl(object):
             # set command to zeros
             self.setJointCommand('right',numpy.zeros((1,7),dtype=float))
         
-        self._mode = mode
+        self.command_mode = mode
 
     def setJointCommand(self, limb, command):
         if not limb in self._valid_limb_names.keys():
@@ -273,10 +299,10 @@ class Sawyer_impl(object):
     
     def command_cb(self,wire,value,time):
         
-        if(wire==self.easy_position_command and self._mode==self.MODE_POSITION):
+        if(wire==self.easy_position_command and self.command_mode==self.MODE_POSITION):
             self._joint_command=wire.InValue
             self._execute_joint_command(joint_command.command)
-        if(wire==self.easy_velocity_command and self._mode==self.MODE_VELOCITY):
+        if(wire==self.easy_velocity_command and self.command_mode==self.MODE_VELOCITY):
             self._velocity_command=wire.InValue
         
     
@@ -335,9 +361,9 @@ class Sawyer_impl(object):
                     state.seqno=self.seqno
                     
                     #print(self._mode)
-                    state.controller_mode=self._mode
+                    state.controller_mode=self.command_mode
                     state.operational_mode=1
-                    state.controller_state=self._mode
+                    state.controller_state=self.controller_state
                     """
                     print(self.readJointPositions())
                     print(self.readJointVelocities())
@@ -408,10 +434,6 @@ class Sawyer_impl(object):
         return header
     
     @property
-    def EasyRobotInfo(self):
-        info=RRN.NewStructure("com.robotraconteur.robotics.easy.EasyRobotInfo")
-    
-    @property
     def speed_ratio(self):
         
         return self._speed_ratio
@@ -424,12 +446,12 @@ class Sawyer_impl(object):
     @property
     def command_mode(self):
         
-        return self._mode
+        return self.command_mode
 
     @command_mode.setter
     def command_mode(self,value):
         print("Changing mode to: "+str(value))
-        self._mode=value
+        self.command_mode=value
     # worker function to request and update end effector data for sawyer
     # Try to maintain 100 Hz operation'
     def setf_signal(self,signal_name,value):
@@ -464,22 +486,28 @@ class Sawyer_impl(object):
         while self._running:
             t1 = time.time()
             
-            if (self._mode == self.MODE_POSITION):
+            if (self.command_mode == self.MODE_POSITION):
                 if(self._jp_pub):
                     self._right.set_joint_positions(self._r_joint_command)
-            elif (self._mode == self.MODE_VELOCITY):
+            elif (self.command_mode == self.MODE_VELOCITY):
                 self._right.set_joint_velocities(self._r_joint_command)
-            elif (self._mode == self.MODE_TORQUE):
+            elif (self.command_mode == self.MODE_TORQUE):
                 #self._supp_cuff_int_pubs['left'].publish()
                 #self._supp_cuff_int_pubs['right'].publish()
                 self._right.set_joint_torques(self._r_joint_command)
             while (time.time() - t1 < 0.01):
                 # idle
                 time.sleep(0.001)
-        return self._mode
-    #@update_downsample.setter
-    #def update_downsample(self,downsample):
-    #    self._downsample=downsample
+        return self.command_mode
+    
+    @update_downsample.setter
+    def update_downsample(self,downsample):
+        self._downsample=downsample
+    
+    @property
+    def update_downsample(self):
+        #TODO: how is update downsample different than update_rate
+        return self._downsample
     
     @property
     def update_rate(self):
@@ -488,6 +516,50 @@ class Sawyer_impl(object):
     @property
     def easy_param_names(self):
         return params
+        
+    @property
+    def robot_info(self):
+        return self.robot_info
+    
+    @property
+    def operational_mode(self):
+        return self.operational_mode
+    
+    @property
+    def controller_state(self):
+        return self.controller_state
+    
+    
+    #TODO:How to implement halt
+    def halt(self):
+        return 0
+    
+    #TODO: What is int32 chain supposed to do?
+    def tool_attached(self,chain,tool):
+        return 0
+    
+    def tool_detached(self,chain, tool_name):
+        return 0
+    
+    #TODO: How does sending this to the robot service help the tesseract script that is actually doing the planning? Does the control computer attach a 
+    #payload and then the planner gets that as part of the state message or what?
+    def payload_attached(self, chain, payload, pose):
+        return 0
+    
+    
+    def payload_detached(self, chain, payload_name):
+        return 0
+    
+    
+    def getf_param(self, param_name):
+        return self.param_name
+        
+    def setf_param(self, param_name, value):
+        self.param_name=value
+    
+    
+    
+        
     
 class trajectory_generator(object):
     def __init__(self,robot_object):
@@ -660,9 +732,9 @@ def main():
         RRN.RegisterServiceTypeFromFile("com.robotraconteur.geometry")
         RRN.RegisterServiceTypeFromFile("com.robotraconteur.uuid")
         RRN.RegisterServiceTypeFromFile("com.robotraconteur.datetime")
-	RRN.RegisterServiceTypeFromFile("com.robotraconteur.identifier")
+        RRN.RegisterServiceTypeFromFile("com.robotraconteur.identifier")
         RRN.RegisterServiceTypeFromFile("com.robotraconteur.sensordata")
-	RRN.RegisterServiceTypeFromFile("com.robotraconteur.resource")
+        RRN.RegisterServiceTypeFromFile("com.robotraconteur.resource")
         RRN.RegisterServiceTypeFromFile("com.robotraconteur.device")
         RRN.RegisterServiceTypeFromFile("com.robotraconteur.units")
         RRN.RegisterServiceTypeFromFile("com.robotraconteur.robotics.joints")
